@@ -107,9 +107,12 @@ gene_map_uniq = gene_map |>
 mirna_map = fread("../wahdidou/vlegoff_mirna_gene_map.csv")
 uplift_map = fread("../id_conversion/uplift_ensg_map.csv")
 
-gencode = "/env/cnrgh/proj/math_stats/scratch/gloaguen/These_VLG/enrichment/gencode.v22.annotation.gtf"
+#gencode = "/env/cnrgh/proj/math_stats/scratch/gloaguen/These_VLG/enrichment/gencode.v22.annotation.gtf"
+url_gencode22 = "ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_22/gencode.v22.annotation.gtf.gz"
+file_gencode22 = "gencode.v22.annotation.gtf.gz"
+download.file(url_gencode22, destfile=file_gencode22)
 
-gtf            = rtracklayer::import(gencode)
+gtf            = rtracklayer::import(gzfile(file_gencode))
 gtf_df         = as.data.frame(gtf)
 gtf_df$gene_id = sapply(strsplit(x = gtf_df$gene_id, split = "\\."), function(x) x[[1]])
 
