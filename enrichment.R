@@ -22,9 +22,9 @@ jdr_df = list()
 for (c in cancers) {
     for (m in methods) {
         message(paste0(c, "\t", m))
-        cox_tmp = fread(paste0("results/", c, "_", m, "_cox.csv"))
+        cox_tmp = fread(paste0("results/raw_bootstrap/", c, "_", m, "_cox.csv"))
         cox_df = c(cox_df, list(cox_tmp))
-        jdr_tmp = fread(paste0("results/", c, "_", m, ".csv"))
+        jdr_tmp = fread(paste0("results/raw_bootstrap/", c, "_", m, ".csv"))
         jdr_tmp$cancer = c
         jdr_df = c(jdr_df, list(jdr_tmp))
     }
@@ -35,8 +35,7 @@ jdr_df[, p.adj:=p.adjust(pval, method="BH")][, qval:=qvalue::qvalue(pval)$qvalue
 cox_df[, p.adj:=p.adjust(pval, method="BH")]
 
 fwrite(jdr_df, "results/aggregated_jdr_weights.csv")
-fwrite(cox_df, "aggregated_cox_weights.csv")
-
+fwrite(cox_df, "results/aggregated_cox_weights.csv")
 
 jdr_df = fread("results/aggregated_jdr_weights.csv")
 cox_df = fread("results/aggregated_cox_weights.csv")
@@ -44,11 +43,11 @@ cox_df = fread("results/aggregated_cox_weights.csv")
 jdr_for_barplot = jdr_df[,
     .(n=sum(p.adj<=0.05, na.rm=TRUE)), by=.(cancer, learner_id, comp)
 ]
-fwrite(jdr_for_barplot, "jdr_for_barplot.csv")
+fwrite(jdr_for_barplot, "results/jdr_for_barplot.csv")
 cox_for_barplot = cox_df[,
     .(n=sum(p.adj<=0.05, na.rm=TRUE)), by=.(cancer, learner_id, comp)
 ]
-fwrite(cox_for_barplot, "cox_for_barplot.csv")
+fwrite(cox_for_barplot, "results/cox_for_barplot.csv")
 
 jdr_sig = jdr_df[p.adj<=0.05, .N, by=.(learner_id, cancer, block, comp)]
 sig_comps = cox_df %>%
@@ -61,32 +60,8 @@ sig_comps = cox_df %>%
     subset(select=c(cancer, learner_id, comp, p.adj, N)) %>%
     mutate(cancer=forcats::fct_relevel(cancer, cancers)) %>%
     arrange(cancer, learner_id, comp)
-sig_comps_plus = sig_comps %>%
-    left_join(select(cox_df, cancer, learner_id, comp, weight_mean, weight_sd, n)) %>%
-    rename(
-        n_genes_sig=N,
-        cox_mean=weight_mean,
-        cox_sd=weight_sd,
-        n_bootstrap_sample=n
-    ) %>%
-    left_join(
-        enrich_df %>%
-            filter(gene_set %in% c("KEGG", "TAM")) %>%
-            mutate(comp=case_when(
-                grepl("common", comp) ~ sub("(rna|mirna|mutation|cnv)\\.", "", comp),
-                .default=comp
-            )) %>%
-            mutate(padj=p.adjust(pval, method="BH")) %>%
-            group_by(cancer, learner_id, comp) %>%
-            summarize(n_pathway_signif=sum(padj<=0.05), n_pathway_total=n()) %>%
-            ungroup() %>%
-            mutate(prop_pathway_signif=n_pathway_signif/n_pathway_total)
-    ) %>%
-    select(cancer, learner_id, comp, p.adj, cox_mean, cox_sd, n_genes_sig,
-        n_pathway_signif, prop_pathway_signif, n_pathway_total, n_bootstrap_sample)
-fwrite(sig_comps_plus, "cox_comps_sig.csv")
 
-gene_map = fread("../wahdidou/vlegoff_gene_id_map.csv")
+gene_map = fread("data/vlegoff_gene_id_map.csv")
 dup_ens = gene_map |>
     _[["ensembl_gene_id"]] |>
     table() |>
@@ -104,16 +79,14 @@ dup_sym = gene_map |>
 gene_map_uniq = gene_map |>
     subset(!(ensembl_gene_id %in% dup_ens) & !(orig_symbol %in% dup_sym)) |>
     data.table()
-mirna_map = fread("../wahdidou/vlegoff_mirna_gene_map.csv")
-uplift_map = fread("../id_conversion/uplift_ensg_map.csv")
 
 #gencode = "/env/cnrgh/proj/math_stats/scratch/gloaguen/These_VLG/enrichment/gencode.v22.annotation.gtf"
 url_gencode22 = "ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_22/gencode.v22.annotation.gtf.gz"
 file_gencode22 = "gencode.v22.annotation.gtf.gz"
 download.file(url_gencode22, destfile=file_gencode22)
 
-gtf            = rtracklayer::import(gzfile(file_gencode))
-gtf_df         = as.data.frame(gtf)
+gtf = rtracklayer::import(gzfile(file_gencode22))
+gtf_df = as.data.frame(gtf)
 gtf_df$gene_id = sapply(strsplit(x = gtf_df$gene_id, split = "\\."), function(x) x[[1]])
 
 jdr_df %>% 
@@ -126,7 +99,7 @@ jdr_df %>%
     select(gene_id, seqnames, start, end) %>%
     rename(var=gene_id, chr=seqnames)
   ) %>%
-  fwrite("LGG_cnv.csv")
+  fwrite("results/LGG_cnv.csv")
 
 jdr_df %>% 
   filter(cancer == "LGG") %>%
@@ -138,7 +111,7 @@ jdr_df %>%
     select(gene_id, seqnames, start, end) %>%
     rename(var=gene_id, chr=seqnames)
   ) %>%
-  fwrite("LGG_rna.csv")
+  fwrite("results/LGG_rna.csv")
 
 jdr_df %>% 
   filter(cancer == "LGG") %>%
@@ -155,12 +128,12 @@ jdr_df %>%
     select(gene_id, seqnames, start, end) %>%
     rename(var=gene_id, chr=seqnames)
   ) %>%
-  fwrite("LGG_mutation.csv")
+  fwrite("results/LGG_mutation.csv")
 
 genesets_H = msigdbr(species="Homo sapiens", collection="H")
-fwrite(genesets_H, "genesets_H.csv")
+fwrite(genesets_H, "data/genesets_H.csv")
 genesets = genesets_H[, c("gs_name", "ensembl_gene")]
-tam_functions_for_profiler = clusterProfiler::read.gmt("TAM_Function_precursor.gmt")
+tam_functions_for_profiler = clusterProfiler::read.gmt("data/TAM_Function_precursor.gmt")
 
 #sig_to_enrich = sig_comps[!grepl("mirna", comp)][!grepl("common", comp)]
 sig_to_enrich = sig_comps[!grepl("mirna", comp)][grepl("rna", comp)]
@@ -353,4 +326,29 @@ enrich_df = rbind(mutate(ekegg_df, gene_set="H"), emirna_df, ecommon_df) %>%
         size=setSize,
         pval=pvalue
     )
-fwrite(enrich_df, "enrichment_H.csv")
+fwrite(enrich_df, "results/enrichment_H.csv")
+
+sig_comps_plus = sig_comps %>%
+    left_join(select(cox_df, cancer, learner_id, comp, weight_mean, weight_sd, n)) %>%
+    rename(
+        n_genes_sig=N,
+        cox_mean=weight_mean,
+        cox_sd=weight_sd,
+        n_bootstrap_sample=n
+    ) %>%
+    left_join(
+        enrich_df %>%
+            filter(gene_set %in% c("KEGG", "TAM")) %>%
+            mutate(comp=case_when(
+                grepl("common", comp) ~ sub("(rna|mirna|mutation|cnv)\\.", "", comp),
+                .default=comp
+            )) %>%
+            mutate(padj=p.adjust(pval, method="BH")) %>%
+            group_by(cancer, learner_id, comp) %>%
+            summarize(n_pathway_signif=sum(padj<=0.05), n_pathway_total=n()) %>%
+            ungroup() %>%
+            mutate(prop_pathway_signif=n_pathway_signif/n_pathway_total)
+    ) %>%
+    select(cancer, learner_id, comp, p.adj, cox_mean, cox_sd, n_genes_sig,
+        n_pathway_signif, prop_pathway_signif, n_pathway_total, n_bootstrap_sample)
+fwrite(sig_comps_plus, "results/cox_comps_sig.csv")

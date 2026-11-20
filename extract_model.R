@@ -93,11 +93,11 @@ tmp_results %>%
     ungroup() %>%
     mutate(bts_ratio = weight_mean/weight_sd) %>%
     mutate(pval = 2*pnorm(abs(bts_ratio), lower.tail=FALSE)) %>%
-    write_csv(file=paste0("results/", cancer, "_", learner_id, ".csv"))
+    write_csv(file=paste0("results/raw_bootstrap/", cancer, "_", learner_id, ".csv"))
 tmp_results_cox %>%
     group_by(learner_id, cancer, comp) %>%
     summarize(weight_sd=sd(weight), weight_mean=mean(weight), n=n()) %>%
     ungroup() %>%
     mutate(bts_ratio = weight_mean/weight_sd) %>%
     mutate(pval = 2*pnorm(abs(bts_ratio), lower.tail=FALSE)) %>%
-    write_csv(file=paste0("results/", cancer, "_", learner_id, "_cox.csv"))
+    write_csv(file=paste0("results/raw_bootstrap/", cancer, "_", learner_id, "_cox.csv"))

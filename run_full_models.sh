@@ -7,7 +7,7 @@
 #MSUB -o logs/job.%I.out
 #MSUB -e logs/job.%I.err
 
-ENV=../benchmark/env/inti_el9
+ENV=env/inti_el9
 module load micromamba
 micromamba activate -p $ENV
 

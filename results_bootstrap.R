@@ -48,7 +48,7 @@ uniq_lrn = fread("uniq_lrn.csv")
 job_table = fread("job_table.csv")
 
 resources = list(
-    template="./pegasus-simple.tmpl",
+    template="./hpc/pegasus-simple.tmpl",
     walltime=3600*24*1,
     CpW=1,
     ntasks=73,
@@ -79,3 +79,11 @@ brew_env$job = list(
 brew::brew(file=resources$template,
     output="pegasus_bootstrap.sh",
     envir=brew_env)
+
+cox_bootstrap = reduceResultsDataTable(ids=findDone(),
+    fun=\(x) return(x$cox))
+cox_bootstrap$var = lapply(cox_bootstrap$result, names)
+cox_bootstrap = unnest(cox_bootstrap, cols=c(var, result))
+cox_bootstrap = rename(cox_bootstrap, weight=result)
+cox_bootstrap = left_join(cox_bootstrap, job_table)
+fwrite(cox_bootstrap, "results/bootstrap_all_cox.csv")

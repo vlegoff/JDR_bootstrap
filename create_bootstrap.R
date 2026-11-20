@@ -31,7 +31,7 @@ cancers = c(
 )
 cancers = sort(cancers)
 #dat = map(paste0("../benchmark/data/", cancers, ".csv"), data.table::fread)
-dat = paste0("../benchmark/data/", cancers, ".csv")
+dat = paste0("data/herrmann2021/", cancers, ".csv")
 names(dat) = cancers
 
 # get weights from previous registry
@@ -80,7 +80,7 @@ reg =loadRegistry("bootstrap", writeable=TRUE)
 
 clearRegistry()
 multiomic_bootstrap = function(data, job, cancer) {
-    data = data.table::fread(paste0("../benchmark/data/", cancer, ".csv"))
+    data = data.table::fread(paste0("data/herrmann2021/", cancer, ".csv"))
     bts_smp = c(
         sample(which(data$status==0), replace=TRUE),
         sample(which(data$status==1), replace=TRUE)
@@ -108,19 +108,3 @@ addAlgorithm(name="ipca", fun=ipca_wrapper)
 
 pdes = list(bootstrap=data.frame(cancer=cancers))
 addExperiments(prob.designs=pdes, algo.designs=ades, repls=99, combine="bind")
-
-#job_table = getJobTable()[, .(job.id, prob.pars, algorithm, algo.pars)]
-
-reg =loadRegistry("bootstrap", writeable=FALSE)
-
-cox_bootstrap = reduceResultsDataTable(ids=findDone(),
-    fun=\(x) return(x$cox))
-cox_bootstrap$var = lapply(cox_bootstrap$result, names)
-cox_bootstrap = unnest(cox_bootstrap, cols=c(var, result))
-cox_bootstrap = rename(cox_bootstrap, weight=result)
-
-cox_bootstrap = left_join(cox_bootstrap, job_table) #|>
-    #left_join(rename(bootstrap_results, learner_id=result)) |>
-    #unnest(cols=learner_id)
-
-fwrite(cox_bootstrap, "bootstrap_all_cox.csv")

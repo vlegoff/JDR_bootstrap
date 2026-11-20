@@ -1,0 +1,25 @@
+#!/bin/bash
+#MSUB -T <%= resources$walltime %>
+#MSUB -n <%= resources$ntasks %>
+#MSUB -r <%= job$registry %>
+#MSUB -c 1
+#MSUB -E --mem-per-cpu=<%= resources$mem %> 
+<%= if (!is.null(resources$log)){ 
+    paste0("#MSUB -o ", base::normalizePath(resources$log), "/job.%I.out")
+} %>
+<%= if (!is.null(resources$log)){ 
+    paste0("#MSUB -e ", base::normalizePath(resources$log), "/job.%I.err")
+} %>
+<%= if (!is.null(resources$partition)) paste0("#MSUB -q ", resources$partition) %>
+<%= if (!is.null(resources$qos)) paste0("#MSUB -E --qos=", resources$qos) %>
+<%= if (!is.null(resources$nodelist)){ 
+    paste0("#MSUB -E --nodelist=", resources$nodelist)
+} %>
+#MSUB -E --constraint="intel"
+
+module load pegasus
+module load micromamba
+micromamba activate -p env/inti_el9
+
+ccc_mprun -n $SLURM_NTASKS -c 1 \
+    pegasus-mpi-cluster <%= job$dag %>
